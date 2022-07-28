@@ -1,0 +1,16 @@
+[package]
+name = "tonic-sdk-dex-types"
+version = "0.1.0"
+authors = ["Tonic Foundation <hello@tonic.foundation>"]
+edition = "2018"
+
+[dependencies]
+near-sdk = "4.0.0-pre.8"
+
+[dependencies.tonic-sdk-json]
+path = "../json"
+version = "0.1.0"
+
+[dev-dependencies]
+proptest = "1.0.0"
+proptest-derive = "0.3.0"

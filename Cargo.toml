@@ -1,0 +1,24 @@
+[package]
+name = "tonic-sdk"
+version = "0.1.0"
+authors = ["Tonic Foundation <hello@tonic.foundation>"]
+edition = "2018"
+
+[dependencies]
+tonic-sdk-borsh-size = { path = "./crates/borsh-size", version = "0.1.0" }
+tonic-sdk-json = { path = "./crates/json", version = "0.1.0" }
+tonic-sdk-macros-debug = { path = "./crates/macros/debug", version = "0.1.0" }
+
+tonic-sdk-dex-events = { path = "./crates/dex-events", version = "0.1.0" }
+tonic-sdk-dex-types = { path = "./crates/dex-types", version = "0.1.0" }
+
+[profile.test]
+overflow-checks = true
+
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

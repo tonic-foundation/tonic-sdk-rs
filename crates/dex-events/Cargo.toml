@@ -1,0 +1,13 @@
+[package]
+name = "tonic-sdk-dex-events"
+version = "0.1.0"
+authors = ["Tonic Foundation <hello@tonic.foundation>"]
+edition = "2018"
+
+[dependencies]
+near-sdk = "4.0.0-pre.8"
+serde_json = "1.0"
+
+[dependencies.tonic-sdk-dex-types]
+path = "../dex-types"
+version = "0.1.0"
