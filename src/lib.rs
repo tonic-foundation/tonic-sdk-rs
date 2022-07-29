@@ -6,6 +6,7 @@ pub use tonic_sdk_macros::debug::measure_gas;
 
 pub use tonic_sdk_dex_errors as errors;
 pub use tonic_sdk_dex_events as events;
+pub use tonic_sdk_dex_orderbook as orderbook;
 pub use tonic_sdk_dex_types as types;
 
 pub mod prelude {
@@ -13,5 +14,6 @@ pub mod prelude {
     pub use crate::macros;
 
     pub use crate::events::*;
+    pub use crate::orderbook::*;
     pub use crate::types::*;
 }

@@ -22,6 +22,7 @@ pub const ZERO_ORDER_AMOUNT: &str = "E22: zero order amount";
 pub const EXCEEDED_ORDER_LIMIT: &str = "E23: exceeded order limit";
 pub const ORDER_NOT_FOUND: &str = "E24: order not found";
 pub const EXCEEDED_SLIPPAGE_TOLERANCE: &str = "E25: exceeded slippage tolerance";
+pub const SELF_TRADE: &str = "E26: order would self trade";
 
 ///////////////////////////////
 // market creation errors (E3X)

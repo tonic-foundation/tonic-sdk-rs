@@ -11,6 +11,7 @@ tonic-sdk-macros = { path = "./crates/macros" }
 
 tonic-sdk-dex-errors = { path = "./crates/dex-errors" }
 tonic-sdk-dex-events = { path = "./crates/dex-events" }
+tonic-sdk-dex-orderbook = { path = "./crates/dex-orderbook" }
 tonic-sdk-dex-types = { path = "./crates/dex-types" }
 
 [profile.test]
