@@ -1,0 +1,5 @@
+[package]
+name = "tonic-sdk-dex-errors"
+version = "0.1.0"
+authors = ["Tonic Foundation <hello@tonic.foundation>"]
+edition = "2018"

@@ -5,12 +5,13 @@ authors = ["Tonic Foundation <hello@tonic.foundation>"]
 edition = "2018"
 
 [dependencies]
-tonic-sdk-borsh-size = { path = "./crates/borsh-size", version = "0.1.0" }
-tonic-sdk-json = { path = "./crates/json", version = "0.1.0" }
-tonic-sdk-macros-debug = { path = "./crates/macros/debug", version = "0.1.0" }
+tonic-sdk-borsh-size = { path = "./crates/borsh-size" }
+tonic-sdk-json = { path = "./crates/json" }
+tonic-sdk-macros = { path = "./crates/macros" }
 
-tonic-sdk-dex-events = { path = "./crates/dex-events", version = "0.1.0" }
-tonic-sdk-dex-types = { path = "./crates/dex-types", version = "0.1.0" }
+tonic-sdk-dex-errors = { path = "./crates/dex-errors" }
+tonic-sdk-dex-events = { path = "./crates/dex-events" }
+tonic-sdk-dex-types = { path = "./crates/dex-types" }
 
 [profile.test]
 overflow-checks = true

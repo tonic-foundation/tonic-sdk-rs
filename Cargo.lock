@@ -1093,10 +1093,11 @@ name = "tonic-sdk"
 version = "0.1.0"
 dependencies = [
  "tonic-sdk-borsh-size",
+ "tonic-sdk-dex-errors",
  "tonic-sdk-dex-events",
  "tonic-sdk-dex-types",
  "tonic-sdk-json",
- "tonic-sdk-macros-debug",
+ "tonic-sdk-macros",
 ]
 
 [[package]]
@@ -1105,6 +1106,10 @@ version = "0.1.0"
 dependencies = [
  "near-sdk",
 ]
+
+[[package]]
+name = "tonic-sdk-dex-errors"
+version = "0.1.0"
 
 [[package]]
 name = "tonic-sdk-dex-events"
@@ -1121,6 +1126,7 @@ version = "0.1.0"
 dependencies = [
  "near-sdk",
  "tonic-sdk-json",
+ "uint",
 ]
 
 [[package]]
@@ -1129,6 +1135,13 @@ version = "0.1.0"
 dependencies = [
  "near-sdk",
  "serde_json",
+]
+
+[[package]]
+name = "tonic-sdk-macros"
+version = "0.1.0"
+dependencies = [
+ "tonic-sdk-macros-debug",
 ]
 
 [[package]]

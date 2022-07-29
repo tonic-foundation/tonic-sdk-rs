@@ -5,6 +5,7 @@ authors = ["Tonic Foundation <hello@tonic.foundation>"]
 edition = "2018"
 
 [dependencies]
+uint = { version = "0.9.0", default-features = false }
 near-sdk = "4.0.0-pre.8"
 
 [dependencies.tonic-sdk-json]
