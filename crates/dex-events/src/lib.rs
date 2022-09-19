@@ -64,8 +64,14 @@ pub struct NewCancelEvent {
 #[serde(crate = "near_sdk::serde", rename = "cancel_order")]
 pub struct CancelEventData {
     pub order_id: OrderId,
+    /// Amount of locked token refunded.
     pub refund_amount: U128,
+    /// The token that was locked in the open order. Quote if bid, base if ask.
     pub refund_token: TokenType,
+    // TODO: named this way to match fills, etc, but there's no reason for those
+    // fields to be named with this abbreviation
+    /// The remaining open order quantity when the order was cancelled.
+    pub cancelled_qty: U128,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
