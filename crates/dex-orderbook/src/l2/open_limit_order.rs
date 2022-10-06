@@ -2,16 +2,19 @@ use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
     AccountId, Balance,
 };
-use tonic_sdk_dex_types::{new_order_id, LotBalance, OrderId, SequenceNumber, Side, U256};
+use tonic_sdk_dex_types::{new_order_id, LotBalance, OrderId, SequenceNumber, Side};
 use tonic_sdk_macros::*;
+
+#[cfg(feature = "fuzz")]
+use near_sdk::serde::{Deserialize, Serialize};
 
 use crate::{orderbook_math::get_bid_quote_value, *};
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 #[cfg_attr(
     feature = "fuzz",
-    derive(Serialize, near_sdk::serde::Deserialize),
-    near_sdk::serde(crate = "near_sdk::serde")
+    derive(Serialize, Deserialize),
+    serde(crate = "near_sdk::serde")
 )]
 pub struct OpenLimitOrder {
     pub sequence_number: SequenceNumber,

@@ -31,4 +31,4 @@ panic = "abort"
 overflow-checks = true
 
 [features]
-fuzz = []
+fuzzing = []

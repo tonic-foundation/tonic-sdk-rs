@@ -1,5 +1,3 @@
-#![cfg_attr(fuzz, feature(no_coverage))]
-
 #[cfg(test)]
 mod fuzz;
 #[cfg(test)]

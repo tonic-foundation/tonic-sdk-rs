@@ -1,5 +1,5 @@
 default:
     just --list
 
-fuzz:
-    cargo test -p tonic-sdk-dex-orderbook --features fuzz
+fuzz-ob:
+    cargo test -p tonic-sdk-dex-orderbook --features tonic-sdk-dex-orderbook/fuzz
