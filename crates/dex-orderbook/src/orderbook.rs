@@ -55,6 +55,22 @@ pub struct NewOrder {
     pub client_id: Option<ClientId>,
 }
 
+// useful for integrity checks
+impl NewOrder {
+    pub fn value_locked(&self) -> Tvl {
+        match self.side {
+            Side::Buy => Tvl {
+                base_locked: 0,
+                quote_locked: self.available_quote_lots.unwrap() as u128 * self.quote_lot_size,
+            },
+            Side::Sell => Tvl {
+                base_locked: self.max_qty_lots as u128 * self.base_lot_size,
+                quote_locked: 0,
+            },
+        }
+    }
+}
+
 /// Internal struct representing a match ready to be executed.
 #[derive(Clone, Debug)]
 pub struct Match {
@@ -286,7 +302,7 @@ impl<T: L2> Orderbook<T> {
         };
 
         for best_match in resting_orders {
-            let trade_price_lots = *best_match.unwrap_price();
+            let trade_price_lots = best_match.unwrap_price();
 
             let crossed = order.limit_price_lots.is_none()
                 || check_if_crossed(trade_price_lots, order.limit_price_lots.unwrap());
@@ -404,40 +420,7 @@ impl<T: L2> Orderbook<T> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
-    use near_sdk::AccountId;
-
-    fn add_orders(ob: &mut VecOrderbook, orders: Vec<NewOrder>) {
-        for (_, order) in orders.into_iter().enumerate() {
-            ob.place_order(&AccountId::new_unchecked("test_user".to_string()), order);
-        }
-    }
-
-    fn orderbook() -> VecOrderbook {
-        VecOrderbook::default()
-    }
-
-    fn place_order(ob: &mut VecOrderbook, account_id: &AccountId, order: NewOrder) -> OrderId {
-        let res = ob.place_order(account_id, order);
-        res.id
-    }
-
-    #[derive(Default)]
-    struct Counter {
-        pub prev: u64,
-    }
-
-    impl Counter {
-        pub fn next(&mut self) -> u64 {
-            self.prev += 1;
-            self.prev
-        }
-    }
-
-    fn new_counter() -> Counter {
-        Counter::default()
-    }
+    use super::test_utils::*;
 
     #[test]
     fn add_order() {
@@ -546,7 +529,7 @@ mod test {
             ],
         );
 
-        assert_eq!(*ob.find_bbo(Side::Buy).unwrap().unwrap_price(), 3);
+        assert_eq!(ob.find_bbo(Side::Buy).unwrap().unwrap_price(), 3);
     }
 
     #[test]
@@ -587,7 +570,7 @@ mod test {
                 base_lot_size: 1,
             },
         );
-        assert_eq!(*ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 101);
+        assert_eq!(ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 101);
 
         let res2 = ob.place_order(
             &AccountId::new_unchecked("taker".to_string()),
@@ -677,7 +660,7 @@ mod test {
 
         // assert_eq!(ob.asks.len(), 2);
         assert_eq!(ob.find_bbo(Side::Sell).unwrap().open_qty_lots, 3);
-        assert_eq!(*ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 10);
+        assert_eq!(ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 10);
     }
 
     #[test]
@@ -720,9 +703,9 @@ mod test {
         );
 
         let bid = ob.get_order(oid1).unwrap();
-        assert_eq!(*bid.unwrap_side(), Side::Buy);
+        assert_eq!(bid.unwrap_side(), Side::Buy);
         let ask = ob.get_order(oid2).unwrap();
-        assert_eq!(*ask.unwrap_side(), Side::Sell);
+        assert_eq!(ask.unwrap_side(), Side::Sell);
 
         // let invalid = ob.get_order(3);
         // assert_eq!(invalid, None);

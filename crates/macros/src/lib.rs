@@ -35,15 +35,15 @@ macro_rules! measure_storage_increase {
 #[macro_export]
 macro_rules! impl_lazy_accessors {
     ($field:ident, $getter:ident, $setter:ident, $t:ty) => {
-        pub fn $getter(&self) -> &$t {
+        pub fn $getter(&self) -> $t {
             _expect!(
-                self.$field.get(),
+                self.$field,
                 &format!("unitialized field {}", stringify!($field))
             )
         }
 
         pub fn $setter(&mut self, v: $t) {
-            if let Err(_) = self.$field.set(v) {
+            if let Some(_) = self.$field.replace(v) {
                 // not a bug, more like a cache hit
                 debug_log!("field {} already initialized", stringify!($field));
             }

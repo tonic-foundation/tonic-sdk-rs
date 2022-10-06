@@ -1,3 +1,8 @@
+#[cfg(test)]
+mod fuzz;
+#[cfg(test)]
+mod test_utils;
+
 pub mod l2;
 pub mod orderbook;
 

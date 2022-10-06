@@ -72,7 +72,7 @@ impl L2 for VecL2 {
     }
 
     fn save_order(&mut self, order: OpenLimitOrder) {
-        let price = *order.unwrap_price();
+        let price = order.unwrap_price();
         match self.find_order_loc(price, order.sequence_number) {
             Ok(loc) => self.orders[loc] = (price, order),
             Err(loc) => self.orders.insert(loc, (price, order)),
@@ -158,7 +158,6 @@ impl VecL2 {
 #[cfg(test)]
 mod tests {
     use near_sdk::AccountId;
-    use once_cell::unsync::OnceCell;
 
     use super::*;
 
@@ -168,8 +167,8 @@ mod tests {
             owner_id: AccountId::new_unchecked("a.near".to_string()),
             open_qty_lots: 1,
             client_id: None,
-            limit_price_lots: OnceCell::from(price),
-            side: OnceCell::from(Side::Buy),
+            limit_price_lots: Some(price),
+            side: Some(Side::Buy),
         }
     }
 
