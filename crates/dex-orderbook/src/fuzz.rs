@@ -17,7 +17,7 @@ mod test {
         let base_denomination = 1000;
 
         // test per-order tvl
-        let mut open_bid = OpenLimitOrder {
+        let open_bid = OpenLimitOrder {
             open_qty_lots: 5,
             owner_id: user.clone(),
             sequence_number: 1,
@@ -34,7 +34,7 @@ mod test {
             "bid tvl mismatch"
         );
 
-        let mut open_ask = OpenLimitOrder {
+        let open_ask = OpenLimitOrder {
             open_qty_lots: 5,
             owner_id: user.clone(),
             sequence_number: 1,
@@ -53,7 +53,7 @@ mod test {
 
         // test whole orderbook tvl
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let bid_req = NewOrder {
             sequence_number: counter.next(),
@@ -84,8 +84,8 @@ mod test {
         // TODO: PlaceOrderResult doesn't include the amount of unused tokens; until now,
         // the contract simply didn't debit unused tokens from the user, but it will be
         // useful to start returning that amount for these tests.
-        let bid_resp = ob.place_order(&user, bid_req);
-        let ask_resp = ob.place_order(&user, ask_req);
+        let _bid_resp = ob.place_order(&user, bid_req);
+        let _ask_resp = ob.place_order(&user, ask_req);
         let tvl_after = ob.tvl(base_lot_size, quote_lot_size, base_denomination);
 
         assert_eq!(
@@ -96,6 +96,44 @@ mod test {
             },
             "ob TVL check failed"
         );
-        assert_eq!(tvl_before, tvl_after, "rugged")
+        assert_eq!(tvl_before, tvl_after, "orderbook rugged");
+    }
+
+    #[non_exhaustive]
+    enum Operation {
+        PlaceBid {
+            price: LotBalance,
+            quantity: LotBalance,
+            order_type: OrderType,
+        },
+    }
+    fn check_ob_integrity(operations: &[Operation]) {
+        let mut ob = new_orderbook();
+        let mut counter = new_counter();
+
+        // for op in operations {
+        //     match op {
+        //         Operation::PlaceBid {
+        //             price,
+        //             quantity,
+        //             order_type,
+        //         } => {
+        //             let bid_req = NewOrder {
+        //                 sequence_number: counter.next(),
+        //                 limit_price_lots: Some(*price),
+        //                 max_qty_lots: *quantity,
+        //                 side: Side::Buy,
+        //                 order_type: *order_type,
+        //                 available_quote_lots: Some(5), // TODO: formulated to exactly lock the correct balance with no refund
+        //                 base_lot_size,
+        //                 quote_lot_size,
+        //                 base_denomination,
+        //                 client_id: None,
+        //             };
+        //             ob.place_order(user_id, order);
+        //         }
+        //         _ => unreachable!(),
+        //     }
+        // }
     }
 }

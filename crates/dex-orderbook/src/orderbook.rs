@@ -9,6 +9,7 @@ use tonic_sdk_dex_errors as errors;
 use tonic_sdk_dex_types::*;
 use tonic_sdk_macros::*;
 
+use crate::orderbook_math::OrderbookCalculator;
 use crate::*;
 
 /// The immediate outcome of creating a new order.
@@ -287,6 +288,12 @@ impl<T: L2> Orderbook<T> {
     /// Match orders. The result can be used to alter the orderbook, settle
     /// balance changes, etc.
     fn match_order(&self, user_id: &AccountId, order: &NewOrder) -> MatchOrderResult {
+        let calculator = OrderbookCalculator {
+            base_lot_size: order.base_lot_size,
+            quote_lot_size: order.quote_lot_size,
+            base_denomination: order.base_denomination,
+        };
+
         let mut unfilled_qty_lots = order.max_qty_lots;
         let mut unused_quote_lots = order.available_quote_lots;
 
@@ -339,14 +346,8 @@ impl<T: L2> Orderbook<T> {
                 break;
             }
 
-            let native_quote_paid = ({
-                U256::from(trade_price_lots)
-                    * U256::from(order.quote_lot_size)
-                    * U256::from(trade_qty_lots)
-                    * U256::from(order.base_lot_size)
-                    / U256::from(order.base_denomination)
-            })
-            .as_u128();
+            let native_quote_paid =
+                calculator.get_bid_quote_value(trade_qty_lots, trade_price_lots);
             unfilled_qty_lots -= trade_qty_lots;
             if unused_quote_lots.is_some() {
                 // buying
@@ -425,7 +426,7 @@ mod test {
     #[test]
     fn add_order() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let res = ob.place_order(
             &AccountId::new_unchecked("test_user".to_string()),
@@ -449,7 +450,7 @@ mod test {
     #[test]
     fn no_fill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -535,7 +536,7 @@ mod test {
     #[test]
     fn basic_fill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let res = ob.place_order(
             &AccountId::new_unchecked("maker".to_string()),
@@ -596,7 +597,7 @@ mod test {
     #[test]
     fn partial_fill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -666,7 +667,7 @@ mod test {
     #[test]
     fn find_order() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let oid1 = place_order(
             &mut ob,
@@ -714,7 +715,7 @@ mod test {
     #[test]
     fn test_post_only() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -773,7 +774,7 @@ mod test {
     #[test]
     fn test_ioc() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -815,7 +816,7 @@ mod test {
     #[test]
     fn test_fill_or_kill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -894,7 +895,7 @@ mod test {
     fn test_cancel() {
         let mut counter = new_counter();
         let user = AccountId::new_unchecked("test".to_string());
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let res = ob.place_order(
             &user,
@@ -920,7 +921,7 @@ mod test {
     #[test]
     fn test_cancel_multiple() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let oid1 = place_order(
             &mut ob,

@@ -9,7 +9,7 @@ pub fn add_orders(ob: &mut VecOrderbook, orders: Vec<NewOrder>) {
     }
 }
 
-pub fn orderbook() -> VecOrderbook {
+pub fn new_orderbook() -> VecOrderbook {
     VecOrderbook::default()
 }
 

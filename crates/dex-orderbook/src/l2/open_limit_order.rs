@@ -5,16 +5,13 @@ use near_sdk::{
 use tonic_sdk_dex_types::{new_order_id, LotBalance, OrderId, SequenceNumber, Side, U256};
 use tonic_sdk_macros::*;
 
-#[cfg(feature = "fuzz")]
-use near_sdk::serde::{self, Deserialize};
-
-use crate::*;
+use crate::{orderbook_math::get_bid_quote_value, *};
 
 #[derive(Clone, Debug, PartialEq, BorshDeserialize, BorshSerialize)]
 #[cfg_attr(
     feature = "fuzz",
-    derive(Serialize, Deserialize),
-    serde(crate = "near_sdk::serde")
+    derive(Serialize, near_sdk::serde::Deserialize),
+    near_sdk::serde(crate = "near_sdk::serde")
 )]
 pub struct OpenLimitOrder {
     pub sequence_number: SequenceNumber,
@@ -65,12 +62,13 @@ impl ValueLocked for OpenLimitOrder {
         match self.unwrap_side() {
             Side::Buy => Tvl {
                 base_locked: 0,
-                quote_locked: (U256::from(self.open_qty_lots)
-                    * U256::from(base_lot_size)
-                    * U256::from(self.unwrap_price())
-                    * U256::from(quote_lot_size)
-                    / U256::from(base_denomination))
-                .as_u128(),
+                quote_locked: get_bid_quote_value(
+                    self.open_qty_lots,
+                    self.unwrap_price(),
+                    base_lot_size,
+                    quote_lot_size,
+                    base_denomination,
+                ),
             },
             Side::Sell => Tvl {
                 base_locked: self.open_qty_lots as u128 * base_lot_size,
