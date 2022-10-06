@@ -1,7 +1,10 @@
-use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
+use near_sdk::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    Balance,
+};
 use tonic_sdk_dex_types::{LotBalance, SequenceNumber};
 
-use crate::OpenLimitOrder;
+use crate::*;
 
 pub trait L2: BorshDeserialize + BorshSerialize + OrderIter + TakeL2Depth {
     /// The order with the greatest price.
@@ -33,6 +36,15 @@ pub trait OrderIter {
     // hack for lifetimes: shouldn't need to return a Box but doesn't really
     // cost anything
     fn iter(&self) -> Box<dyn Iterator<Item = OpenLimitOrder> + '_>;
+}
+
+pub trait ValueLocked {
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl;
 }
 
 /// Trait for structs that can produce a vector of (price, [orders at that price]).
@@ -73,5 +85,25 @@ where
         }
 
         ret
+    }
+}
+
+impl<T> ValueLocked for T
+where
+    T: OrderIter,
+{
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl {
+        self.iter().fold(
+            Tvl {
+                base_locked: 0,
+                quote_locked: 0,
+            },
+            |acc, curr| acc + curr.value_locked(base_lot_size, quote_lot_size, base_denomination),
+        )
     }
 }

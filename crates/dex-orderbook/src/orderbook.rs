@@ -143,6 +143,20 @@ impl<T: L2> Orderbook<T> {
 }
 
 impl<T: L2> Orderbook<T> {
+    /// Get total amount of base and quote locked in the orderbook.
+    pub fn tvl(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl {
+        self.asks
+            .value_locked(base_lot_size, quote_lot_size, base_denomination)
+            + self
+                .bids
+                .value_locked(base_lot_size, quote_lot_size, base_denomination)
+    }
+
     pub fn find_bbo(&self, side: Side) -> Option<OpenLimitOrder> {
         match side {
             Side::Buy => self.bids.max_order(),

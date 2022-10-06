@@ -1,9 +1,9 @@
 use near_sdk::{
     borsh::{self, BorshDeserialize, BorshSerialize},
-    AccountId,
+    AccountId, Balance,
 };
 use once_cell::unsync::OnceCell;
-use tonic_sdk_dex_types::{new_order_id, LotBalance, OrderId, SequenceNumber, Side};
+use tonic_sdk_dex_types::{new_order_id, LotBalance, OrderId, SequenceNumber, Side, U256};
 use tonic_sdk_macros::*;
 
 use crate::*;
@@ -44,5 +44,30 @@ impl OpenLimitOrder {
             *self.unwrap_price(),
             self.sequence_number,
         )
+    }
+}
+
+impl ValueLocked for OpenLimitOrder {
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl {
+        match self.unwrap_side() {
+            Side::Buy => Tvl {
+                base_locked: 0,
+                quote_locked: (U256::from(self.open_qty_lots)
+                    * U256::from(base_lot_size)
+                    * U256::from(*self.unwrap_price())
+                    * U256::from(quote_lot_size)
+                    / U256::from(base_denomination))
+                .as_u128(),
+            },
+            Side::Sell => Tvl {
+                base_locked: self.open_qty_lots as u128 * base_lot_size,
+                quote_locked: 0,
+            },
+        }
     }
 }
