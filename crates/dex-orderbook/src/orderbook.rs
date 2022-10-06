@@ -328,11 +328,8 @@ impl<T: L2> Orderbook<T> {
             let trade_qty_lots = match unused_quote_lots {
                 // buying
                 Some(remaining_quote_lots) => {
-                    let max_based_on_remaining_quote = (U256::from(remaining_quote_lots)
-                        * U256::from(order.base_denomination)
-                        / U256::from(trade_price_lots)
-                        / U256::from(order.base_lot_size))
-                    .as_u64();
+                    let max_based_on_remaining_quote =
+                        calculator.get_base_purchasable(remaining_quote_lots, trade_price_lots);
                     best_match
                         .open_qty_lots
                         .min(unfilled_qty_lots)
