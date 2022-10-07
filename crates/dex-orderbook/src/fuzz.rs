@@ -276,11 +276,9 @@ mod test {
                 let _resp = ob.place_order(user, req);
 
                 let tvl_after = ob.value_locked(base_lot_size, quote_lot_size, base_denomination);
-                assert_eq!(
-                    tvl_before,
-                    tvl_after,
-                    "rugged, diff {}, {}",
-                    tvl_before.quote_locked - tvl_after.quote_locked,
+                assert!(
+                    tvl_before >= tvl_after,
+                    "drain found: order {}",
                     req_to_string(&req_clone)
                 );
             }
