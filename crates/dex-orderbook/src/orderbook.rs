@@ -38,7 +38,7 @@ pub enum OrderOutcome {
 
 /// Internal struct representing an order ready to be processed by the matching
 /// engine.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NewOrder {
     pub sequence_number: SequenceNumber,
     pub limit_price_lots: Option<LotBalance>,

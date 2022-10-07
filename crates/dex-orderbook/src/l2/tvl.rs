@@ -2,7 +2,7 @@ use std::{iter::Sum, ops::Add};
 
 use near_sdk::Balance;
 
-#[derive(PartialEq, Eq, Debug, Default)]
+#[derive(PartialOrd, PartialEq, Eq, Debug, Default)]
 pub struct Tvl {
     pub base_locked: Balance,
     pub quote_locked: Balance,
