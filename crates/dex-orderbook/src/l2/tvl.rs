@@ -1,8 +1,11 @@
-use std::{iter::Sum, ops::Add};
+use std::{
+    iter::Sum,
+    ops::{Add, Sub},
+};
 
 use near_sdk::Balance;
 
-#[derive(PartialOrd, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Tvl {
     pub base_locked: Balance,
     pub quote_locked: Balance,
@@ -15,6 +18,17 @@ impl Add for Tvl {
         Self {
             base_locked: self.base_locked + rhs.base_locked,
             quote_locked: self.quote_locked + rhs.quote_locked,
+        }
+    }
+}
+
+impl Sub for Tvl {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            base_locked: self.base_locked - rhs.base_locked,
+            quote_locked: self.quote_locked - rhs.quote_locked,
         }
     }
 }

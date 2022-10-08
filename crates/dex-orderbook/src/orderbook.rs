@@ -70,6 +70,14 @@ impl NewOrder {
             },
         }
     }
+
+    pub fn assert_valid(&self) {
+        if self.order_type != OrderType::Market {
+            let limit_price = _expect!(self.limit_price_lots, "missing limit price");
+            _assert!(limit_price > 0, "limit price is 0");
+        }
+        _assert!(self.max_qty_lots > 0, "missing quantity");
+    }
 }
 
 /// Internal struct representing a match ready to be executed.
@@ -109,6 +117,30 @@ pub struct PlaceOrderResult {
 impl PlaceOrderResult {
     pub fn is_posted(&self) -> bool {
         self.open_qty_lots > 0
+    }
+}
+
+impl ValueLocked for PlaceOrderResult {
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        _quote_lot_size: Balance,
+        _base_denomination: Balance,
+    ) -> Tvl {
+        // calculate from matches
+        // calculate from the *_lots fields
+        // calculate diff... :skull:
+        let quote_traded = self.matches.iter().map(|m| m.native_quote_paid).sum();
+        let base_traded = self
+            .matches
+            .iter()
+            .map(|m| m.fill_qty_lots as u128 * base_lot_size)
+            .sum();
+
+        Tvl {
+            quote_locked: quote_traded,
+            base_locked: base_traded,
+        }
     }
 }
 
