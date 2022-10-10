@@ -1,7 +1,4 @@
-use std::{
-    iter::Sum,
-    ops::{Add, Sub},
-};
+use std::{iter::Sum, ops::Add};
 
 use near_sdk::Balance;
 
@@ -18,17 +15,6 @@ impl Add for Tvl {
         Self {
             base_locked: self.base_locked + rhs.base_locked,
             quote_locked: self.quote_locked + rhs.quote_locked,
-        }
-    }
-}
-
-impl Sub for Tvl {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            base_locked: self.base_locked - rhs.base_locked,
-            quote_locked: self.quote_locked - rhs.quote_locked,
         }
     }
 }

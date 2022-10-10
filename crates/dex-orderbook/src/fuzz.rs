@@ -118,9 +118,13 @@ mod test {
     /// Returned order is:
     ///
     /// base lot decimals, quote lot decimals, base token decimals
+    ///
+    /// `max_tick_decimals` refers to the max precision of a lot. For example, to support
+    /// up to 0.001 price precision, max_tick decimals would be 3.
     fn arb_decimals(
         max_base_decimals: u32,
         max_quote_decimals: u32,
+        // max_tick_decimals: u32, // TODO: unimplemented
     ) -> impl Strategy<Value = (u128, u128, u128)> {
         // generate base and quote lot decimals first, then return base token decimals as strictly less than the sum
         (
@@ -165,7 +169,7 @@ mod test {
         ) -> NewOrder {
             // TODO: move this outside
             //
-            // XXX BUG 1: if available quote lots is based on the buy quantity
+            // XXX RISK 1: if available quote lots is based on the buy quantity
             // and price, you will cause a drain because the / quote_lot_size
             // division causes you to underspend, but over-lock. at that point,
             // repeatedly placing and cancelling orders will allow you to drain
@@ -222,13 +226,16 @@ mod test {
         max_base_decimals: u32,
         max_quote_decimals: u32,
         max_orders: usize,
-    ) -> impl Strategy<Value = Vec<NewOrder>> {
+    ) -> impl Strategy<Value = ((u128, u128, u128), Vec<NewOrder>)> {
         arb_decimals(max_base_decimals, max_quote_decimals).prop_flat_map(
             move |(base_lot_size, quote_lot_size, base_denomination)| {
-                prop::collection::vec(
-                    arb_limit_order_req(base_lot_size, quote_lot_size, base_denomination)
-                        .prop_filter("invalid order", |req| req.max_qty_lots > 0),
-                    1..=max_orders,
+                (
+                    Just((base_lot_size, quote_lot_size, base_denomination)),
+                    prop::collection::vec(
+                        arb_limit_order_req(base_lot_size, quote_lot_size, base_denomination)
+                            .prop_filter("invalid order", |req| req.max_qty_lots > 0),
+                        1..=max_orders,
+                    ),
                 )
             },
         )
@@ -256,32 +263,31 @@ mod test {
 
     proptest! {
         #[test]
-        fn test_arb_order_req(order_reqs in arb_limit_order_vecs(18, 6, 1)) {
+        fn test_arb_order_req((_, order_reqs) in arb_limit_order_vecs(18, 6, 1)) {
             for req in order_reqs {
                 assert!(req.max_qty_lots > 0, "invalid order")
             }
         }
 
+        /// Test that a sequence of limit orders doesn't result in balances
+        /// being generated from thin air. Does not account for fees.
         #[test]
-        fn fuzz_ob_limit_order_integrity(order_reqs in arb_limit_order_vecs(18, 6, 6)) {
+        fn fuzz_ob_limit_order_integrity((decimals, order_reqs) in arb_limit_order_vecs(18, 6, 6)) {
+            let (base_lot_size, quote_lot_size, base_denomination) = decimals;
+
             let mut ob = new_orderbook();
             let mut counter = new_counter(); // override sequence number? does it matter?
             let buyer = AccountId::new_unchecked("buyer.near".to_string());
             let seller = AccountId::new_unchecked("seller.near".to_string());
 
-            // TODO: arb_orders_vec should return tuple with lot/denominations
-
             for mut req in order_reqs {
                 req.assert_valid();
                 // set up the sequence number
-                // TODO: better to either
+                // TODO: setting the sequence number here is messy. Better to either:
                 //  a. do this in the strategy itself (build the req entirely in the strategy)
                 //  b. make the strategy generate params and build the req entirely outside
                 req.sequence_number = counter.next();
 
-                let base_lot_size = req.base_lot_size;
-                let quote_lot_size = req.quote_lot_size;
-                let base_denomination = req.base_denomination;
                 let user = match req.side {
                     Side::Buy => &buyer,
                     Side::Sell => &seller
@@ -295,25 +301,10 @@ mod test {
                 let tvl_after = result.value_locked(base_lot_size, quote_lot_size, base_denomination)
                     + ob.value_locked(base_lot_size, quote_lot_size, base_denomination);
 
-                // It's usually not possible to cleanly buy/sell exactly one lot
-                // of the base. As long as this doesn't result in an overall
-                // balance increase, there will be a threshold for every pair
-                // below which this difference is negligible. In the current
-                // version of the ob, this value is de facto one lot of each
-                // currency.
-                let tvl_diff = tvl_before - tvl_after;
-                assert!(
-                    tvl_diff.base_locked <= base_lot_size
-                        && tvl_diff.quote_locked <= quote_lot_size,
-                    "drain found, diff {:?} order {}",
-                    tvl_diff,
-                    req_to_string(&req_clone)
-                );
-
                 assert!(
                     tvl_before.quote_locked >= tvl_after.quote_locked
                         && tvl_before.base_locked >= tvl_after.base_locked,
-                    "rugged: order {}",
+                    "drain found: order {}",
                     req_to_string(&req_clone)
                 );
             }
