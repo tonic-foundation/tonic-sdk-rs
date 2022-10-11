@@ -38,11 +38,21 @@ pub struct OpenLimitOrder {
     /// the value at runtime.
     #[borsh_skip]
     pub side: Option<Side>,
+
+    /// Index of the price level. Access with
+    /// [unwrap_price_rank](OpenLimitOrder::unwrap_price_rank).
+    ///
+    /// This value is not stored directly on the trie in this struct. It's the
+    /// responsibility of the containing [L2] or other accessor to initialize
+    /// the value at runtime.
+    #[borsh_skip]
+    pub price_rank: Option<u32>,
 }
 
 impl OpenLimitOrder {
     impl_lazy_accessors!(limit_price_lots, unwrap_price, initialize_price, LotBalance);
     impl_lazy_accessors!(side, unwrap_side, initialize_side, Side);
+    impl_lazy_accessors!(price_rank, unwrap_price_rank, initialize_price_rank, u32);
 }
 
 impl OpenLimitOrder {

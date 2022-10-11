@@ -26,6 +26,7 @@ mod test {
             client_id: None,
             side: Some(Side::Buy),
             limit_price_lots: Some(100),
+            price_rank: None,
         };
         assert_eq!(
             open_bid.value_locked(base_lot_size, quote_lot_size, base_denomination),
@@ -43,6 +44,7 @@ mod test {
             client_id: None,
             side: Some(Side::Sell),
             limit_price_lots: Some(101), // doesn't matter
+            price_rank: None,
         };
         assert_eq!(
             open_ask.value_locked(base_lot_size, quote_lot_size, base_denomination),

@@ -30,6 +30,7 @@ impl VecL2 {
             let mut order = _order.clone();
             order.initialize_price(*price);
             order.initialize_side(self.side());
+            order.initialize_price_rank(self.get_price_rank(*price));
             order
         })
     }
@@ -55,6 +56,7 @@ impl L2 for VecL2 {
                 let mut out = o.clone();
                 out.initialize_price(*p);
                 out.initialize_side(self.side());
+                out.initialize_price_rank(self.get_price_rank(*p));
                 out
             })
     }
@@ -67,6 +69,7 @@ impl L2 for VecL2 {
                 let mut out = o.clone();
                 out.initialize_price(*p);
                 out.initialize_side(self.side());
+                out.initialize_price_rank(self.get_price_rank(*p));
                 out
             })
     }
@@ -87,6 +90,7 @@ impl L2 for VecL2 {
                 let mut ret = o.clone();
                 ret.initialize_price(*p);
                 ret.initialize_side(self.side());
+                ret.initialize_price_rank(self.get_price_rank(price_lots));
                 ret
             })
     }
@@ -97,12 +101,21 @@ impl L2 for VecL2 {
         seq: SequenceNumber,
     ) -> Option<OpenLimitOrder> {
         if let Ok(loc) = self.find_order_loc(price_lots, seq) {
+            let price_rank = self.get_price_rank(price_lots);
             let (_, mut order) = self.orders.remove(loc);
             order.initialize_price(price_lots);
             order.initialize_side(self.side());
+            order.initialize_price_rank(price_rank);
             Some(order)
         } else {
             None
+        }
+    }
+
+    fn get_price_rank(&self, price_lots: LotBalance) -> u32 {
+        match self.get_price_rank_result(price_lots) {
+            Ok(rank) => rank as u32,
+            Err(rank) => rank as u32,
         }
     }
 }
@@ -153,6 +166,26 @@ impl VecL2 {
                 })
         }
     }
+
+    /// Get the "index" of a price level (the rank of a price level).
+    ///
+    /// If found, return `Result::Ok`, value is the index of the price level. If
+    /// not found, return `Result::Err`, value is the index where the price
+    /// level would be.
+    fn get_price_rank_result(&self, price_lots: LotBalance) -> Result<usize, usize> {
+        let mut price_levels = self
+            .orders
+            .iter()
+            .map(|(level, _)| *level)
+            .collect::<Vec<_>>();
+        price_levels.dedup();
+
+        if self.reverse_prices {
+            price_levels.binary_search_by_key(&(!price_lots), |price| (!*price))
+        } else {
+            price_levels.binary_search_by_key(&(price_lots), |price| (*price))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -169,6 +202,7 @@ mod tests {
             client_id: None,
             limit_price_lots: Some(price),
             side: Some(Side::Buy),
+            price_rank: None, // doesn't matter for the test
         }
     }
 
@@ -223,5 +257,40 @@ mod tests {
             l2.orders[1].1.sequence_number == 1 && l2.orders[2].1.sequence_number == 3,
             "orders with same price not sorted by sequence number ascending"
         );
+    }
+
+    #[test]
+    fn get_price_rank() {
+        // sort ascending (ask side); lower prices should have lower rank
+        // price rank for price 1 should be 0
+        // price rank for price 2 should be 1
+        // price rank for price 3 should be 2
+        // price rank for price 5 should be 3
+        let mut l2 = VecL2::new(false);
+        l2.save_order(make_order(1, 1));
+        l2.save_order(make_order(1, 2));
+        l2.save_order(make_order(2, 3));
+        l2.save_order(make_order(4, 4));
+
+        assert_eq!(l2.get_price_rank(1), 0, "wrong price rank for price 1");
+        assert_eq!(l2.get_price_rank(2), 1, "wrong price rank for price 2");
+        assert_eq!(l2.get_price_rank(3), 2, "wrong price rank for price 3");
+        assert_eq!(l2.get_price_rank(5), 3, "wrong price rank for price 5");
+
+        // sort descending (bid side); higher prices should have lower rank
+        // price rank for price 5 should be 0 (comes before 4)
+        // price rank for price 3 should be 1 (comes after 4)
+        // price rank for price 2 should be 1 (comes after 4)
+        // price rank for price 1 should be 2 (comes after 4, 2)
+        let mut l2 = VecL2::new(true);
+        l2.save_order(make_order(1, 1));
+        l2.save_order(make_order(1, 2));
+        l2.save_order(make_order(2, 3));
+        l2.save_order(make_order(4, 4));
+
+        assert_eq!(l2.get_price_rank(5), 0, "wrong price rank for price 5");
+        assert_eq!(l2.get_price_rank(3), 1, "wrong price rank for price 3");
+        assert_eq!(l2.get_price_rank(2), 1, "wrong price rank for price 2");
+        assert_eq!(l2.get_price_rank(1), 2, "wrong price rank for price 1");
     }
 }
