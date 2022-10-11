@@ -19,6 +19,8 @@ pub trait L2: BorshDeserialize + BorshSerialize + OrderIter + TakeL2Depth {
         sequence_number: SequenceNumber,
     ) -> Option<OpenLimitOrder>;
 
+    fn get_price_rank(&self, price_lots: LotBalance) -> u32;
+
     fn delete_order(
         &mut self,
         price_lots: LotBalance,
