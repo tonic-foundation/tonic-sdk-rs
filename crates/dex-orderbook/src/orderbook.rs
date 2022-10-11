@@ -3,6 +3,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{AccountId, Balance};
+use once_cell::unsync::OnceCell;
 use std::fmt::Debug;
 
 use tonic_sdk_dex_errors as errors;
@@ -63,6 +64,7 @@ pub struct Match {
     pub fill_qty_lots: LotBalance,
     pub fill_price_lots: LotBalance,
     pub native_quote_paid: Balance,
+    pub maker_order_price_rank: u32,
 
     /// Was the matched maker order removed. Used to update [Account]'s
     /// [OpenOrdersMap] during balance settlement.
@@ -87,6 +89,8 @@ pub struct PlaceOrderResult {
     pub quote_amount_lots: LotBalance,
     pub outcome: OrderOutcome,
     pub matches: Vec<Match>,
+    /// Price rank of the new order. `None` if the order didn't post.
+    pub price_rank: Option<u32>,
 }
 
 impl PlaceOrderResult {
@@ -157,6 +161,13 @@ impl<T: L2> Orderbook<T> {
         };
     }
 
+    fn get_price_rank(&self, side: Side, price_lots: LotBalance) -> u32 {
+        match side {
+            Side::Buy => self.bids.get_price_rank(price_lots),
+            Side::Sell => self.asks.get_price_rank(price_lots),
+        }
+    }
+
     /// Place a new order and run the matching engine. This modifies the
     /// orderbook and returns a struct containing information needed to settle
     /// account balance changes resulting from the order.
@@ -190,6 +201,7 @@ impl<T: L2> Orderbook<T> {
                 quote_amount_lots: 0,
                 outcome: OrderOutcome::Rejected,
                 matches: vec![],
+                price_rank: None,
             };
         }
 
@@ -235,10 +247,21 @@ impl<T: L2> Orderbook<T> {
                 open_qty_lots: unfilled_qty_lots,
                 client_id: order.client_id,
                 side: order.side.into(),
+                price_rank: OnceCell::new(),
             });
         }
 
         let open_qty_lots = if can_post { unfilled_qty_lots } else { 0 };
+
+        // return price rank if order posted
+        let price_rank = if open_qty_lots > 0 {
+            Some(self.get_price_rank(
+                order.side,
+                _expect!(order, limit_price_lots, errors::MISSING_LIMIT_PRICE),
+            ))
+        } else {
+            None
+        };
 
         PlaceOrderResult {
             id: order_id,
@@ -251,6 +274,7 @@ impl<T: L2> Orderbook<T> {
                 .unwrap_or_default(),
             outcome,
             matches,
+            price_rank,
         }
     }
 
@@ -331,6 +355,7 @@ impl<T: L2> Orderbook<T> {
                 fill_price_lots: trade_price_lots,
                 native_quote_paid,
                 maker_order_removed: None,
+                maker_order_price_rank: *best_match.unwrap_price_rank(),
             });
         }
 

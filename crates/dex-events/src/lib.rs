@@ -39,6 +39,8 @@ pub struct NewOrderEvent {
     pub market_id: MarketId,
     /// Price specified in the order. Zero (0) if market order
     pub limit_price: U128,
+    /// Price rank. `None` if the order didn't post
+    pub price_rank: Option<U128>,
     /// Quantity specified in the order; may not be the same as amount traded
     pub quantity: U128,
     pub side: Side,
@@ -72,6 +74,8 @@ pub struct CancelEventData {
     // fields to be named with this abbreviation
     /// The remaining open order quantity when the order was cancelled.
     pub cancelled_qty: U128,
+    /// The order's price rank before it was cancelled.
+    pub price_rank: U128,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -103,6 +107,14 @@ pub struct FillEventData {
     pub side: Side,
     pub taker_account_id: AccountId,
     pub maker_account_id: AccountId,
+    /// Price rank of the maker order right before it was filled. This is always
+    /// zero (0) for now, since when an order is filled, it is necessarily at
+    /// the top of the book. (There's an argument for counting up when an order
+    /// fills at multiple price levels, but our reasoning is that if someone's
+    /// order set a good enough price to be worth trading against as part of a
+    /// single order, it would be the same as if someone had, eg, sent a batch
+    /// trade or simply sent multiple transactions to hit it.)
+    pub maker_price_rank: U128,
 }
 
 pub fn emit_event(data: EventType) {
