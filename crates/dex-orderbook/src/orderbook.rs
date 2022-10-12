@@ -14,7 +14,7 @@ use crate::*;
 
 /// The immediate outcome of creating a new order.
 #[derive(
-    Clone, Copy, Debug, PartialEq, BorshSerialize, BorshDeserialize, Serialize, Deserialize,
+    Clone, Copy, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, Deserialize,
 )]
 #[serde(crate = "near_sdk::serde")]
 pub enum OrderOutcome {

@@ -40,7 +40,7 @@ pub struct NewOrderEvent {
     /// Price specified in the order. Zero (0) if market order
     pub limit_price: U128,
     /// Price rank. `None` if the order didn't post
-    pub price_rank: Option<U128>,
+    pub price_rank: Option<u32>,
     /// Quantity specified in the order; may not be the same as amount traded
     pub quantity: U128,
     pub side: Side,
@@ -53,6 +53,7 @@ pub struct NewOrderEvent {
     /// True if order created by an [Action::Swap]
     #[serde(default)] // backwards compatibility
     pub is_swap: bool,
+    pub client_id: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -75,7 +76,7 @@ pub struct CancelEventData {
     /// The remaining open order quantity when the order was cancelled.
     pub cancelled_qty: U128,
     /// The order's price rank before it was cancelled.
-    pub price_rank: U128,
+    pub price_rank: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -109,7 +110,7 @@ pub struct FillEventData {
     pub maker_account_id: AccountId,
     /// Price rank of the maker order right before it was filled. This is always
     /// zero (0).
-    pub maker_price_rank: U128,
+    pub maker_price_rank: u32,
 }
 
 pub fn emit_event(data: EventType) {
