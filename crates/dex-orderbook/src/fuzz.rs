@@ -303,12 +303,26 @@ mod test {
                 let tvl_after = result.value_locked(base_lot_size, quote_lot_size, base_denomination)
                     + ob.value_locked(base_lot_size, quote_lot_size, base_denomination);
 
+                // assert no overall drain
                 assert!(
                     tvl_before.quote_locked >= tvl_after.quote_locked
                         && tvl_before.base_locked >= tvl_after.base_locked,
                     "drain found: order {}",
                     req_to_string(&req_clone)
                 );
+
+                // assert order doesn't oversell
+                assert!(
+                    req_clone.max_qty_lots >= result.fill_qty_lots,
+                    "oversold"
+                );
+                // assert order doesn't overspend
+                if let Some(available_quote_lots) = req_clone.available_quote_lots {
+                    assert!(
+                        available_quote_lots >= result.quote_amount_lots,
+                        "overspent"
+                    )
+                }
             }
         }
     }
