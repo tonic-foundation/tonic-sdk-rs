@@ -1,0 +1,9 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc a027f9ffe2d06fea36997244f9202a54c753837fcefe80b78b3349f331cc6ce9 # shrinks to mut order_reqs = [NewOrder { sequence_number: 0, limit_price_lots: Some(0), available_quote_lots: Some(1), max_qty_lots: 5762457997666, side: Buy, order_type: Limit, base_denomination: 1000000000000, quote_lot_size: 1000000000000, base_lot_size: 10, client_id: None }]
+cc 45779e8d9a95be4f922ef54dacc7709449cebe89a2119f6156e13a1cd7b99e14 # shrinks to mut order_reqs = [NewOrder { sequence_number: 3749572555228997, limit_price_lots: Some(18142822320520227049), available_quote_lots: Some(6035406340526748039), max_qty_lots: 5016420133478363173, side: Buy, order_type: Limit, base_denomination: 1000000, quote_lot_size: 100000, base_lot_size: 10000000, client_id: None }]
+cc 39bcef7e0ce0be2beb3f9bf8a24062aa152f533eacd84ed4dfb522d69d6a1d2b # shrinks to order_reqs = [NewOrder { sequence_number: 0, limit_price_lots: Some(16354), available_quote_lots: Some(14769190983148175360), max_qty_lots: 0, side: Buy, order_type: Limit, base_denomination: 10, quote_lot_size: 10000, base_lot_size: 10000000000000000, client_id: None }]

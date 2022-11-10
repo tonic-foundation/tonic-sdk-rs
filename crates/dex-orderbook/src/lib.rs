@@ -1,8 +1,15 @@
+#[cfg(test)]
+mod fuzz;
+#[cfg(test)]
+mod test_utils;
+
 pub mod l2;
 pub mod orderbook;
+pub mod orderbook_math;
 
 pub use l2::*;
 pub use orderbook::*;
+pub use orderbook_math::*;
 
 use l2::vec::VecL2;
 

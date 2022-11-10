@@ -1,7 +1,10 @@
-use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
+use near_sdk::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    Balance,
+};
 use tonic_sdk_dex_types::{LotBalance, SequenceNumber};
 
-use crate::OpenLimitOrder;
+use crate::*;
 
 pub trait L2: BorshDeserialize + BorshSerialize + OrderIter + TakeL2Depth {
     /// The order with the greatest price.
@@ -59,11 +62,11 @@ where
                 break;
             }
             if curr_price.is_none() {
-                curr_price = Some(*order.unwrap_price());
+                curr_price = Some(order.unwrap_price());
             }
-            if curr_price.unwrap() != *order.unwrap_price() {
+            if curr_price.unwrap() != order.unwrap_price() {
                 ret.push((curr_price.unwrap(), curr_acc.clone()));
-                curr_price = Some(*order.unwrap_price());
+                curr_price = Some(order.unwrap_price());
                 curr_acc = vec![];
             }
             curr_acc.push(order);
@@ -75,5 +78,31 @@ where
         }
 
         ret
+    }
+}
+
+/// Trait for structs that represent ownership of base and/or quote tokens.
+pub trait ValueLocked {
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl;
+}
+
+impl<T> ValueLocked for T
+where
+    T: OrderIter,
+{
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl {
+        self.iter()
+            .map(|o| o.value_locked(base_lot_size, quote_lot_size, base_denomination))
+            .sum()
     }
 }

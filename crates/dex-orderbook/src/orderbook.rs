@@ -3,13 +3,13 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{AccountId, Balance};
-use once_cell::unsync::OnceCell;
 use std::fmt::Debug;
 
 use tonic_sdk_dex_errors as errors;
 use tonic_sdk_dex_types::*;
 use tonic_sdk_macros::*;
 
+use crate::orderbook_math::OrderbookCalculator;
 use crate::*;
 
 /// The immediate outcome of creating a new order.
@@ -38,7 +38,7 @@ pub enum OrderOutcome {
 
 /// Internal struct representing an order ready to be processed by the matching
 /// engine.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NewOrder {
     pub sequence_number: SequenceNumber,
     pub limit_price_lots: Option<LotBalance>,
@@ -54,6 +54,30 @@ pub struct NewOrder {
     pub quote_lot_size: u128,
     pub base_lot_size: u128,
     pub client_id: Option<ClientId>,
+}
+
+// useful for integrity checks
+impl NewOrder {
+    pub fn value_locked(&self) -> Tvl {
+        match self.side {
+            Side::Buy => Tvl {
+                base_locked: 0,
+                quote_locked: self.available_quote_lots.unwrap() as u128 * self.quote_lot_size,
+            },
+            Side::Sell => Tvl {
+                base_locked: self.max_qty_lots as u128 * self.base_lot_size,
+                quote_locked: 0,
+            },
+        }
+    }
+
+    pub fn assert_valid(&self) {
+        if self.order_type != OrderType::Market {
+            let limit_price = _expect!(self.limit_price_lots, "missing limit price");
+            _assert!(limit_price > 0, "limit price is 0");
+        }
+        _assert!(self.max_qty_lots > 0, "missing quantity");
+    }
 }
 
 /// Internal struct representing a match ready to be executed.
@@ -96,6 +120,30 @@ pub struct PlaceOrderResult {
 impl PlaceOrderResult {
     pub fn is_posted(&self) -> bool {
         self.open_qty_lots > 0
+    }
+}
+
+impl ValueLocked for PlaceOrderResult {
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        _quote_lot_size: Balance,
+        _base_denomination: Balance,
+    ) -> Tvl {
+        // calculate from matches
+        // calculate from the *_lots fields
+        // calculate diff... :skull:
+        let quote_traded = self.matches.iter().map(|m| m.native_quote_paid).sum();
+        let base_traded = self
+            .matches
+            .iter()
+            .map(|m| m.fill_qty_lots as u128 * base_lot_size)
+            .sum();
+
+        Tvl {
+            quote_locked: quote_traded,
+            base_locked: base_traded,
+        }
     }
 }
 
@@ -143,6 +191,21 @@ pub struct MatchOrderResult {
 impl<T: L2> Orderbook<T> {
     pub fn new(bids: T, asks: T) -> Self {
         Self { bids, asks }
+    }
+}
+
+impl<T: L2> ValueLocked for Orderbook<T> {
+    fn value_locked(
+        &self,
+        base_lot_size: Balance,
+        quote_lot_size: Balance,
+        base_denomination: Balance,
+    ) -> Tvl {
+        self.asks
+            .value_locked(base_lot_size, quote_lot_size, base_denomination)
+            + self
+                .bids
+                .value_locked(base_lot_size, quote_lot_size, base_denomination)
     }
 }
 
@@ -247,7 +310,7 @@ impl<T: L2> Orderbook<T> {
                 open_qty_lots: unfilled_qty_lots,
                 client_id: order.client_id,
                 side: order.side.into(),
-                price_rank: OnceCell::new(),
+                price_rank: None,
             });
         }
 
@@ -281,6 +344,12 @@ impl<T: L2> Orderbook<T> {
     /// Match orders. The result can be used to alter the orderbook, settle
     /// balance changes, etc.
     fn match_order(&self, user_id: &AccountId, order: &NewOrder) -> MatchOrderResult {
+        let calculator = OrderbookCalculator {
+            base_lot_size: order.base_lot_size,
+            quote_lot_size: order.quote_lot_size,
+            base_denomination: order.base_denomination,
+        };
+
         let mut unfilled_qty_lots = order.max_qty_lots;
         let mut unused_quote_lots = order.available_quote_lots;
 
@@ -296,7 +365,7 @@ impl<T: L2> Orderbook<T> {
         };
 
         for best_match in resting_orders {
-            let trade_price_lots = *best_match.unwrap_price();
+            let trade_price_lots = best_match.unwrap_price();
 
             let crossed = order.limit_price_lots.is_none()
                 || check_if_crossed(trade_price_lots, order.limit_price_lots.unwrap());
@@ -315,11 +384,8 @@ impl<T: L2> Orderbook<T> {
             let trade_qty_lots = match unused_quote_lots {
                 // buying
                 Some(remaining_quote_lots) => {
-                    let max_based_on_remaining_quote = (U256::from(remaining_quote_lots)
-                        * U256::from(order.base_denomination)
-                        / U256::from(trade_price_lots)
-                        / U256::from(order.base_lot_size))
-                    .as_u64();
+                    let max_based_on_remaining_quote =
+                        calculator.get_base_purchasable(remaining_quote_lots, trade_price_lots);
                     best_match
                         .open_qty_lots
                         .min(unfilled_qty_lots)
@@ -333,14 +399,8 @@ impl<T: L2> Orderbook<T> {
                 break;
             }
 
-            let native_quote_paid = ({
-                U256::from(trade_price_lots)
-                    * U256::from(order.quote_lot_size)
-                    * U256::from(trade_qty_lots)
-                    * U256::from(order.base_lot_size)
-                    / U256::from(order.base_denomination)
-            })
-            .as_u128();
+            let native_quote_paid =
+                calculator.get_bid_quote_value(trade_qty_lots, trade_price_lots);
             unfilled_qty_lots -= trade_qty_lots;
             if unused_quote_lots.is_some() {
                 // buying
@@ -355,7 +415,7 @@ impl<T: L2> Orderbook<T> {
                 fill_price_lots: trade_price_lots,
                 native_quote_paid,
                 maker_order_removed: None,
-                maker_order_price_rank: *best_match.unwrap_price_rank(),
+                maker_order_price_rank: best_match.unwrap_price_rank(),
             });
         }
 
@@ -415,45 +475,12 @@ impl<T: L2> Orderbook<T> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
-    use near_sdk::AccountId;
-
-    fn add_orders(ob: &mut VecOrderbook, orders: Vec<NewOrder>) {
-        for (_, order) in orders.into_iter().enumerate() {
-            ob.place_order(&AccountId::new_unchecked("test_user".to_string()), order);
-        }
-    }
-
-    fn orderbook() -> VecOrderbook {
-        VecOrderbook::default()
-    }
-
-    fn place_order(ob: &mut VecOrderbook, account_id: &AccountId, order: NewOrder) -> OrderId {
-        let res = ob.place_order(account_id, order);
-        res.id
-    }
-
-    #[derive(Default)]
-    struct Counter {
-        pub prev: u64,
-    }
-
-    impl Counter {
-        pub fn next(&mut self) -> u64 {
-            self.prev += 1;
-            self.prev
-        }
-    }
-
-    fn new_counter() -> Counter {
-        Counter::default()
-    }
+    use super::test_utils::*;
 
     #[test]
     fn add_order() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let res = ob.place_order(
             &AccountId::new_unchecked("test_user".to_string()),
@@ -477,7 +504,7 @@ mod test {
     #[test]
     fn no_fill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -557,13 +584,13 @@ mod test {
             ],
         );
 
-        assert_eq!(*ob.find_bbo(Side::Buy).unwrap().unwrap_price(), 3);
+        assert_eq!(ob.find_bbo(Side::Buy).unwrap().unwrap_price(), 3);
     }
 
     #[test]
     fn basic_fill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let res = ob.place_order(
             &AccountId::new_unchecked("maker".to_string()),
@@ -598,7 +625,7 @@ mod test {
                 base_lot_size: 1,
             },
         );
-        assert_eq!(*ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 101);
+        assert_eq!(ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 101);
 
         let res2 = ob.place_order(
             &AccountId::new_unchecked("taker".to_string()),
@@ -624,7 +651,7 @@ mod test {
     #[test]
     fn partial_fill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -688,13 +715,13 @@ mod test {
 
         // assert_eq!(ob.asks.len(), 2);
         assert_eq!(ob.find_bbo(Side::Sell).unwrap().open_qty_lots, 3);
-        assert_eq!(*ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 10);
+        assert_eq!(ob.find_bbo(Side::Sell).unwrap().unwrap_price(), 10);
     }
 
     #[test]
     fn find_order() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let oid1 = place_order(
             &mut ob,
@@ -731,9 +758,9 @@ mod test {
         );
 
         let bid = ob.get_order(oid1).unwrap();
-        assert_eq!(*bid.unwrap_side(), Side::Buy);
+        assert_eq!(bid.unwrap_side(), Side::Buy);
         let ask = ob.get_order(oid2).unwrap();
-        assert_eq!(*ask.unwrap_side(), Side::Sell);
+        assert_eq!(ask.unwrap_side(), Side::Sell);
 
         // let invalid = ob.get_order(3);
         // assert_eq!(invalid, None);
@@ -742,7 +769,7 @@ mod test {
     #[test]
     fn test_post_only() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -801,7 +828,7 @@ mod test {
     #[test]
     fn test_ioc() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -843,7 +870,7 @@ mod test {
     #[test]
     fn test_fill_or_kill() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         add_orders(
             &mut ob,
@@ -922,7 +949,7 @@ mod test {
     fn test_cancel() {
         let mut counter = new_counter();
         let user = AccountId::new_unchecked("test".to_string());
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let res = ob.place_order(
             &user,
@@ -948,7 +975,7 @@ mod test {
     #[test]
     fn test_cancel_multiple() {
         let mut counter = new_counter();
-        let mut ob = orderbook();
+        let mut ob = new_orderbook();
 
         let oid1 = place_order(
             &mut ob,

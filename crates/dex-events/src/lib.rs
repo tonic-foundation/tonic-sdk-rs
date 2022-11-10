@@ -109,7 +109,8 @@ pub struct FillEventData {
     pub taker_account_id: AccountId,
     pub maker_account_id: AccountId,
     /// Price rank of the maker order right before it was filled. This is always
-    /// zero (0).
+    /// Always zero (0) for now, since when an order is filled, it is necessarily at
+    /// the top of the book
     pub maker_price_rank: u32,
 }
 
