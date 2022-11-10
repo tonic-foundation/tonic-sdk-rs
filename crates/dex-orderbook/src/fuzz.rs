@@ -165,23 +165,11 @@ mod test {
             sequence_number in 0..(u64::MAX - 1),
             order_type in arb_order_type(),
             side in arb_order_side(),
-            // these values are probably never going to touch most of this range...
+            // TODO: better generator, these values are probably never going to touch most of this range
             limit_price_lots in 1..1_000_000u64,
             max_qty_lots in 1..1_000_000u64
         ) -> NewOrder {
             // TODO: move this outside
-            //
-            // XXX RISK 1: if available quote lots is based on the buy quantity
-            // and price, you will cause a drain because the / quote_lot_size
-            // division causes you to underspend, but over-lock. at that point,
-            // repeatedly placing and cancelling orders will allow you to drain
-            // contract balances.
-            //
-            // on the other hand, basing the buy quantity on available quote and
-            // price causes a sort of rug for the opposite reason: price often
-            // won't divide evenly into available quote, so the remainder is
-            // lost. However, this would _not_ cause a drain because cancelling
-            // would return the actual amount locked?
             let available_quote_lots = if side == Side::Buy {
                 Some((
                     get_bid_quote_value(
@@ -235,6 +223,7 @@ mod test {
                     Just((base_lot_size, quote_lot_size, base_denomination)),
                     prop::collection::vec(
                         arb_limit_order_req(base_lot_size, quote_lot_size, base_denomination)
+                            // TODO: too many rejects
                             .prop_filter("invalid order", |req| req.max_qty_lots > 0),
                         1..=max_orders,
                     ),
