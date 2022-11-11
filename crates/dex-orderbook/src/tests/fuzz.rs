@@ -185,8 +185,9 @@ prop_compose! {
         let max_qty_lots = if side == Side::Buy {
             max_qty_lots.min(
                 get_base_purchasable(
-                    available_quote_lots.unwrap(),
+                    available_quote_lots.unwrap() as u128 * quote_lot_size,
                     limit_price_lots,
+                    quote_lot_size,
                     base_lot_size,
                     base_denomination
                 )

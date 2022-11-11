@@ -351,7 +351,9 @@ impl<T: L2> Orderbook<T> {
         };
 
         let mut unfilled_qty_lots = order.max_qty_lots;
-        let mut unused_quote_lots = order.available_quote_lots;
+        let mut unused_quote = order
+            .available_quote_lots
+            .map(|l| calculator.quote_lot_size as u128 * l as u128);
 
         let check_if_crossed: fn(LotBalance, LotBalance) -> bool = match order.side {
             Side::Buy => |p1, p2| p1 <= p2,
@@ -381,11 +383,11 @@ impl<T: L2> Orderbook<T> {
                 near_sdk::env::panic_str(errors::SELF_TRADE)
             }
 
-            let trade_qty_lots = match unused_quote_lots {
+            let trade_qty_lots = match unused_quote {
                 // buying
-                Some(remaining_quote_lots) => {
+                Some(remaining_quote) => {
                     let max_based_on_remaining_quote =
-                        calculator.get_base_purchasable(remaining_quote_lots, trade_price_lots);
+                        calculator.get_base_purchasable(remaining_quote, trade_price_lots);
                     best_match
                         .open_qty_lots
                         .min(unfilled_qty_lots)
@@ -402,10 +404,9 @@ impl<T: L2> Orderbook<T> {
             let native_quote_paid =
                 calculator.get_bid_quote_value(trade_qty_lots, trade_price_lots);
             unfilled_qty_lots -= trade_qty_lots;
-            if unused_quote_lots.is_some() {
+            if unused_quote.is_some() {
                 // buying
-                let quote_lots_paid = (native_quote_paid / order.quote_lot_size as u128) as u64;
-                unused_quote_lots = Some(unused_quote_lots.unwrap() - quote_lots_paid);
+                unused_quote = Some(unused_quote.unwrap() - native_quote_paid);
             }
 
             matches.push(Match {
@@ -421,7 +422,8 @@ impl<T: L2> Orderbook<T> {
 
         MatchOrderResult {
             unfilled_qty_lots,
-            unused_quote_lots,
+            // TODO: change this to use full native size
+            unused_quote_lots: unused_quote.map(|n| (n / calculator.quote_lot_size) as u64),
             matches,
         }
     }
