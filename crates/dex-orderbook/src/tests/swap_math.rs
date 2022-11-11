@@ -73,11 +73,12 @@ fn swap_math_bug() {
     );
     // quick rundown of what's happening
     // - the first fill costs 9.98 @ 0.480 = 4.790400
-    // - after that, we have (4.7952 - (4.8 * .998)) = 0.0048 usdc left
-    //   - notice that this can only buy 0.00983606557 Aurora, which is < 1 lot,
-    //   - notice that this the quote lot size is 0.001, so we should have 4 lots available,
-    //     but after first fill, ob shows 5 lots available, which *is* enough to buy one more
-    //     lot. there's a rounded error on ob:407; converting native paid back to lots is a rounding error
+    // - after that, we have (4.7952 - 9.99 * 4.8) = 0.0048 usdc left
+    //   - this can only buy 0.00983606557 Aurora, which is < 1 lot,
+    //   - the quote lot size is 0.001, so we should have 4 lots available, but
+    //     after first fill, ob shows 5 lots available, which *is* enough to buy
+    //     one more. there's a rounding error in matching engine when decreasing
+    //     unused_quote
 
     let native_quote_paid = res
         .matches
@@ -86,7 +87,7 @@ fn swap_math_bug() {
         .sum::<u128>();
 
     assert_eq!(
-        9980000000000000000, // + 10000000000000000, // so the bug is fixed if that second fill doesn't happens
+        9980000000000000000, // + 10000000000000000, // the bug is fixed if second fill doesn't happen
         res.fill_qty_lots as u128 * base_lot_size,
         "didn't match real txn"
     );
