@@ -30,14 +30,35 @@ macro_rules! measure_storage_increase {
     }};
 }
 
-/// Intended for OnceCell-based fields that are borsh-skipped and must be
-/// initialized at runtime. Assumes that `field` is a [once_cell::unsync::OnceCell].
+/// Intended for Option-based fields that are borsh-skipped and must be
+/// initialized at runtime. Assumes that `field` is an [Option].
 #[macro_export]
 macro_rules! impl_lazy_accessors {
     ($field:ident, $getter:ident, $setter:ident, $t:ty) => {
         pub fn $getter(&self) -> $t {
             _expect!(
                 self.$field,
+                &format!("unitialized field {}", stringify!($field))
+            )
+        }
+
+        pub fn $setter(&mut self, v: $t) {
+            if let Some(_) = self.$field.replace(v) {
+                // not a bug, more like a cache hit
+                debug_log!("field {} already initialized", stringify!($field));
+            }
+        }
+    };
+}
+
+/// Intended for Option-based fields that are borsh-skipped and must be
+/// initialized at runtime. Assumes that `field` is an [Option].
+#[macro_export]
+macro_rules! impl_lazy_accessors_clone {
+    ($field:ident, $getter:ident, $setter:ident, $t:ty) => {
+        pub fn $getter(&self) -> $t {
+            _expect!(
+                self.$field.clone(),
                 &format!("unitialized field {}", stringify!($field))
             )
         }
