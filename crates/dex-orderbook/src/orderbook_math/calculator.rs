@@ -23,10 +23,11 @@ impl OrderbookCalculator {
     }
 
     /// Get quantity of base that a given amount of quote is worth in terms of base lots
-    pub fn get_base_purchasable(&self, quote_amount: LotBalance, price: LotBalance) -> LotBalance {
+    pub fn get_base_purchasable(&self, quote_amount: Balance, price: LotBalance) -> LotBalance {
         get_base_purchasable(
             quote_amount,
             price,
+            self.quote_lot_size,
             self.base_lot_size,
             self.base_denomination,
         )
@@ -34,6 +35,8 @@ impl OrderbookCalculator {
 }
 
 /// Get the value of a bid in terms of native quote token.
+///
+/// Conceptually, this is price * quantity.
 pub fn get_bid_quote_value(
     quantity: LotBalance,
     price: LotBalance,
@@ -50,14 +53,18 @@ pub fn get_bid_quote_value(
 }
 
 /// Get quantity of base that a given amount of quote is worth in terms of base lots
+///
+/// Conceptually, this is quote amount / price.
 pub fn get_base_purchasable(
-    quote_amount: LotBalance,
+    quote_amount: Balance,
     price: LotBalance,
+    quote_lot_size: Balance,
     base_lot_size: Balance,
     base_denomination: Balance,
 ) -> LotBalance {
     BN!(quote_amount)
         .mul(base_denomination)
+        .div(quote_lot_size as u128)
         .div(price as u128)
         .div(base_lot_size)
         .as_u64()

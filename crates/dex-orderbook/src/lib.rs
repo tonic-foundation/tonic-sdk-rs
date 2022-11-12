@@ -1,7 +1,5 @@
 #[cfg(test)]
-mod fuzz;
-#[cfg(test)]
-mod test_utils;
+mod tests;
 
 pub mod l2;
 pub mod orderbook;
