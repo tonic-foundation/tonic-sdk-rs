@@ -43,6 +43,7 @@ pub struct NewOrderEvent {
     /// Price specified in the order. Zero (0) if market order
     pub limit_price: U128,
     /// Price rank. `None` if the order didn't post
+    #[deprecated(note = "use best_bid/best_ask instead")]
     pub price_rank: Option<u32>, // TODO: make this Option. new indexer can't index old events if this is required
     /// Best resting bid before the order was placed. [None] if bid side was
     /// empty.
@@ -85,7 +86,16 @@ pub struct CancelEventData {
     /// The remaining open order quantity when the order was cancelled.
     pub cancelled_qty: U128,
     /// The order's price rank before it was cancelled.
+    ///
+    /// Deprecated
+    #[deprecated(note = "use best_bid/best_ask instead")]
     pub price_rank: u32, // TODO: make this Option. new indexer can't index old events if this is required
+    /// Best resting bid before the order was placed. [None] if bid side was
+    /// empty.
+    pub best_bid: Option<U128>,
+    /// Best resting ask before the order was placed. [None] if ask side was
+    /// empty.
+    pub best_ask: Option<U128>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -120,6 +130,7 @@ pub struct FillEventData {
     /// Price rank of the maker order right before it was filled. This is always
     /// Always zero (0) for now, since when an order is filled, it is necessarily at
     /// the top of the book
+    #[deprecated(note = "use best_bid/best_ask on the associated maker order instead")]
     pub maker_price_rank: u32, // TODO: make this Option. new indexer can't index old events if this is required
 }
 

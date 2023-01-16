@@ -194,6 +194,13 @@ pub struct MatchOrderResult {
     matches: Vec<Match>,
 }
 
+#[derive(Debug)]
+pub struct CancelOrderResult {
+    pub best_bid: Option<LotBalance>,
+    pub best_ask: Option<LotBalance>,
+    pub order: OpenLimitOrder,
+}
+
 impl<T: L2> Orderbook<T> {
     pub fn new(bids: T, asks: T) -> Self {
         Self { bids, asks }
@@ -501,15 +508,33 @@ impl<T: L2> Orderbook<T> {
         }
     }
 
-    pub fn cancel_order(&mut self, order_id: OrderId) -> Option<OpenLimitOrder> {
-        self.remove_order(order_id)
+    pub fn cancel_order(&mut self, order_id: OrderId) -> Option<CancelOrderResult> {
+        if let Some(order) = self.remove_order(order_id) {
+            let best_bid = self.find_bbo(Side::Buy).map(|o| o.unwrap_price());
+            let best_ask = self.find_bbo(Side::Sell).map(|o| o.unwrap_price());
+            Some(CancelOrderResult {
+                order,
+                best_bid,
+                best_ask,
+            })
+        } else {
+            None
+        }
     }
 
-    pub fn cancel_orders(&mut self, order_ids: Vec<OrderId>) -> Vec<OpenLimitOrder> {
-        let mut deleted: Vec<OpenLimitOrder> = vec![];
+    /// Cancel orders. Note that, because this is an atomic operation, best bid/ask prices are
+    /// computed *once* before the first order is removed.
+    pub fn cancel_orders(&mut self, order_ids: Vec<OrderId>) -> Vec<CancelOrderResult> {
+        let mut deleted: Vec<CancelOrderResult> = vec![];
+        let best_bid = self.find_bbo(Side::Buy).map(|o| o.unwrap_price());
+        let best_ask = self.find_bbo(Side::Sell).map(|o| o.unwrap_price());
         for order_id in order_ids.into_iter() {
             if let Some(order) = self.remove_order(order_id) {
-                deleted.push(order)
+                deleted.push(CancelOrderResult {
+                    order,
+                    best_bid,
+                    best_ask,
+                })
             } else {
                 debug_log!("Order bug: user had non-existent order ID");
             }
