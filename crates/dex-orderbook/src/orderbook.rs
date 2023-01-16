@@ -266,10 +266,6 @@ impl<T: L2> Orderbook<T> {
     /// orderbook and returns a struct containing information needed to settle
     /// account balance changes resulting from the order.
     pub fn place_order(&mut self, user_id: &AccountId, order: NewOrder) -> PlaceOrderResult {
-        // for emitting event
-        let best_bid = self.find_bbo(Side::Buy).map(|o| o.unwrap_price());
-        let best_ask = self.find_bbo(Side::Sell).map(|o| o.unwrap_price());
-
         let order_id = new_order_id(
             order.side,
             order.limit_price_lots.unwrap_or_default(),
@@ -291,6 +287,9 @@ impl<T: L2> Orderbook<T> {
         };
 
         if rejected {
+            // orderbook unchanged
+            let best_bid = self.find_bbo(Side::Buy).map(|o| o.unwrap_price());
+            let best_ask = self.find_bbo(Side::Sell).map(|o| o.unwrap_price());
             // no orderbook state modified at this point, return to cancel
             return PlaceOrderResult {
                 id: order_id,
@@ -362,6 +361,10 @@ impl<T: L2> Orderbook<T> {
         } else {
             None
         };
+
+        // orderbook has been mutated!
+        let best_bid = self.find_bbo(Side::Buy).map(|o| o.unwrap_price());
+        let best_ask = self.find_bbo(Side::Sell).map(|o| o.unwrap_price());
 
         PlaceOrderResult {
             id: order_id,
