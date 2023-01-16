@@ -11,6 +11,14 @@ pub struct OrderbookCalculator {
 }
 
 impl OrderbookCalculator {
+    // pub fn base_lots_to_native(&self, lots: LotBalance) -> Balance {
+    //     self.base_lot_size * lots as u128
+    // }
+
+    // pub fn quote_lots_to_native(&self, lots: LotBalance) -> Balance {
+    //     self.quote_lot_size * lots as u128
+    // }
+
     /// Get the value of a bid in terms of native quote token.
     pub fn get_bid_quote_value(&self, quantity: LotBalance, price: LotBalance) -> Balance {
         get_bid_quote_value(

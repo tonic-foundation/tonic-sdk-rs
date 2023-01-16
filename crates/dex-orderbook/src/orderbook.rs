@@ -115,6 +115,12 @@ pub struct PlaceOrderResult {
     pub matches: Vec<Match>,
     /// Price rank of the new order. `None` if the order didn't post.
     pub price_rank: Option<u32>,
+    /// Best resting bid before the order was placed. [None] if bid side was
+    /// empty.
+    pub best_bid: Option<LotBalance>,
+    /// Best resting ask before the order was placed. [None] if ask side was
+    /// empty.
+    pub best_ask: Option<LotBalance>,
 }
 
 impl PlaceOrderResult {
@@ -210,6 +216,31 @@ impl<T: L2> ValueLocked for Orderbook<T> {
 }
 
 impl<T: L2> Orderbook<T> {
+    // Get midmarket price in native quote amount.
+    //
+    // Returns [None] if the orderbook is completely empty. If one side is
+    // empty, return the best price from the other side.
+    // pub fn get_midmarket_price(&self, calc: &OrderbookCalculator) -> Option<Balance> {
+    //     let asks_empty = self.asks.is_empty();
+    //     let bids_empty = self.bids.is_empty();
+
+    //     let best_bid = self.find_bbo(Side::Buy);
+    //     let best_ask = self.find_bbo(Side::Sell);
+
+    //     if asks_empty && bids_empty {
+    //         None
+    //     } else if asks_empty {
+    //         Some(calc.quote_lots_to_native(best_bid.unwrap().unwrap_price()))
+    //     } else if bids_empty {
+    //         Some(calc.quote_lots_to_native(best_ask.unwrap().unwrap_price()))
+    //     } else {
+    //         // compute average of best bid and best ask
+    //         let best_bid_price = calc.quote_lots_to_native(best_bid.unwrap().unwrap_price());
+    //         let best_ask_price = calc.quote_lots_to_native(best_ask.unwrap().unwrap_price());
+    //         Some(BN!(best_bid_price).add(best_ask_price).div(2).as_u128())
+    //     }
+    // }
+
     pub fn find_bbo(&self, side: Side) -> Option<OpenLimitOrder> {
         match side {
             Side::Buy => self.bids.max_order(),
@@ -235,6 +266,10 @@ impl<T: L2> Orderbook<T> {
     /// orderbook and returns a struct containing information needed to settle
     /// account balance changes resulting from the order.
     pub fn place_order(&mut self, user_id: &AccountId, order: NewOrder) -> PlaceOrderResult {
+        // for emitting event
+        let best_bid = self.find_bbo(Side::Buy).map(|o| o.unwrap_price());
+        let best_ask = self.find_bbo(Side::Sell).map(|o| o.unwrap_price());
+
         let order_id = new_order_id(
             order.side,
             order.limit_price_lots.unwrap_or_default(),
@@ -265,6 +300,8 @@ impl<T: L2> Orderbook<T> {
                 outcome: OrderOutcome::Rejected,
                 matches: vec![],
                 price_rank: None,
+                best_bid,
+                best_ask,
             };
         }
 
@@ -338,6 +375,8 @@ impl<T: L2> Orderbook<T> {
             outcome,
             matches,
             price_rank,
+            best_bid,
+            best_ask,
         }
     }
 
@@ -349,6 +388,7 @@ impl<T: L2> Orderbook<T> {
             quote_lot_size: order.quote_lot_size,
             base_denomination: order.base_denomination,
         };
+        // let midmarket_price = self.get_midmarket_price(&calculator);
 
         let mut unfilled_qty_lots = order.max_qty_lots;
         let mut unused_quote = order

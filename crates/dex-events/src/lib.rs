@@ -36,11 +36,20 @@ pub enum EventType {
 pub struct NewOrderEvent {
     pub account_id: AccountId,
     pub order_id: OrderId,
+    /// `Some(0)` if the order didn't post. (uses [Option] for backwards
+    /// compatibility; [None] implies the event is an old version.)
+    pub open_quantity: Option<U128>,
     pub market_id: MarketId,
     /// Price specified in the order. Zero (0) if market order
     pub limit_price: U128,
     /// Price rank. `None` if the order didn't post
-    pub price_rank: Option<u32>,
+    pub price_rank: Option<u32>, // TODO: make this Option. new indexer can't index old events if this is required
+    /// Best resting bid before the order was placed. [None] if bid side was
+    /// empty.
+    pub best_bid: Option<U128>,
+    /// Best resting ask before the order was placed. [None] if ask side was
+    /// empty.
+    pub best_ask: Option<U128>,
     /// Quantity specified in the order; may not be the same as amount traded
     pub quantity: U128,
     pub side: Side,
@@ -76,7 +85,7 @@ pub struct CancelEventData {
     /// The remaining open order quantity when the order was cancelled.
     pub cancelled_qty: U128,
     /// The order's price rank before it was cancelled.
-    pub price_rank: u32,
+    pub price_rank: u32, // TODO: make this Option. new indexer can't index old events if this is required
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -111,7 +120,7 @@ pub struct FillEventData {
     /// Price rank of the maker order right before it was filled. This is always
     /// Always zero (0) for now, since when an order is filled, it is necessarily at
     /// the top of the book
-    pub maker_price_rank: u32,
+    pub maker_price_rank: u32, // TODO: make this Option. new indexer can't index old events if this is required
 }
 
 pub fn emit_event(data: EventType) {
